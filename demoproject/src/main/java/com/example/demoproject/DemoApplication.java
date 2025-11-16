@@ -23,7 +23,10 @@ public class DemoApplication {
 
 	@GetMapping("/hello")
 	public Map<String,Object> sayHello() throws Exception {
-		return dataMapper.mapData("/2.mapping-config.yml", "/2.data.json");
+
+		 boolean isDryRun = true; //args.length > 0 && "--dry-run".equals(args[0]);
+		boolean jsonOutput = false; //args.length > 1 && "--json-output".equals(args[1]);		 
+		return dataMapper.dryRun(isDryRun).jsonDryRunOutput(jsonOutput).mapData("/2.mapping-config.yml", "/2.data.json");
 		
 	}
 

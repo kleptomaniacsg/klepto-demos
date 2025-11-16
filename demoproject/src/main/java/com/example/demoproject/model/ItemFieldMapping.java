@@ -2,22 +2,32 @@ package com.example.demoproject.model;
 
 
 
-public class FieldMapping {
+public class ItemFieldMapping {
     private String source;
-    @Override
-    public String toString() {
-        return "FieldMapping [source=" + source + ", target=" + target + ", transform=" + transform + ", condition="
-                + condition + ", defaultValue=" + defaultValue + ", collection=" + collection + "]";
-    }
-    private String target;
+    private String targetPrefix;
+    private String targetSuffix;
     private Object transform;
     private Condition condition;
+    private String defaultValue;
+    private CollectionMapping collection;
+
+    @Override
+    public String toString() {
+        return "ItemFieldMapping [source=" + source + ", targetPrefix=" + targetPrefix + ", targetSuffix="
+                + targetSuffix + ", transform=" + transform + ", condition=" + condition + ", defaultValue="
+                + defaultValue + ", collection=" + collection + "]";
+    }
+
     public void setSource(String source) {
         this.source = source;
     }
 
-    public void setTarget(String target) {
-        this.target = target;
+    public void setTargetPrefix(String targetPrefix) {
+        this.targetPrefix = targetPrefix;
+    }
+
+    public void setTargetSuffix(String targetSuffix) {
+        this.targetSuffix = targetSuffix;
     }
 
     public void setTransform(Object transform) {
@@ -35,20 +45,15 @@ public class FieldMapping {
     public void setCollection(CollectionMapping collection) {
         this.collection = collection;
     }
-    private String defaultValue;
-    private CollectionMapping collection;
 
-    public boolean isScalar() {
-        return source != null && target != null;
-    }
-
-    public boolean isCollection() {
+    public boolean isNestedCollection() {
         return collection != null;
     }
 
     // Getters
     public String getSource() { return source; }
-    public String getTarget() { return target; }
+    public String getTargetPrefix() { return targetPrefix; }
+    public String getTargetSuffix() { return targetSuffix; }
     public Object getTransform() { return transform; }
     public Condition getCondition() { return condition; }
     public String getDefaultValue() { return defaultValue; }

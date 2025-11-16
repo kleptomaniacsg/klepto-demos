@@ -55,11 +55,15 @@ public class ConditionEvaluator {
     }
 
     private static Object resolveValueForCondition(Condition c, DocumentContext json, Object fallback) {
-        if (c.getField() != null) {
+    if (c.getField() != null) {
+        try {
             return json.read("$." + c.getField());
+        } catch (Exception e) {
+            return null;
         }
-        return fallback;
     }
+    return fallback;
+}
 
     private static boolean compareNumeric(Object actual, Object expected, java.util.function.BiFunction<Double, Double, Boolean> op) {
         try {
