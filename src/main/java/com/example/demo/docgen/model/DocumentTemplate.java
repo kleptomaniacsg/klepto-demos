@@ -69,6 +69,12 @@ public class DocumentTemplate {
     private HeaderFooterConfig headerFooterConfig;
     
     /**
+     * Template-level configuration (columnSpacing, etc.)
+     */
+    @Builder.Default
+    private Map<String, Object> config = new HashMap<>();
+    
+    /**
      * Metadata for template selection (product type, state, market, etc.)
      */
     @Builder.Default

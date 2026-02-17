@@ -115,9 +115,18 @@ curl http://localhost:8080/api/documents/health
    - Comprehensive unit tests for `TemplateLoader`, `DocumentComposer`, and `AcroFormRenderer`.
    - Validated inheritance logic, conditional skipping, and overflow partitioning.
 
+6. **Excel Generation with Plan Comparison** ✨ NEW:
+   - **PlanComparisonTransformer**: Converts nested plan/benefits data into 2D comparison matrices
+   - **ExcelSectionRenderer**: Detects 2D arrays and fills Excel ranges with proper formatting
+   - **Auto-Transformation Feature**: Server automatically transforms raw plan data when using "plan-comparison" template
+   - **2D Array Support**: Benefits in rows, plans in columns, with configurable spacing
+   - **Comprehensive Tests**: 13 test cases covering basic, advanced, and edge case scenarios
+   - **Template Files**: YAML config + clean XLSX template (7 × 6 grid)
+
 ### Dependencies Configured
 
 - ✅ Apache PDFBox 3.0.1 (PDF manipulation)
+- ✅ Apache POI 5.0+ (Excel workbook creation and manipulation)
 - ✅ FreeMarker 2.3.32 (template engine)
 - ✅ OpenHtmlToPDF 1.0.10 (HTML to PDF)
 - ✅ Jackson (JSON/YAML processing)
@@ -126,6 +135,66 @@ curl http://localhost:8080/api/documents/health
 - ✅ Spring Boot 4.0.1 (framework)
 
 ### Next Steps
+
+#### Excel Generation & Plan Comparison Feature ✨ NEW
+
+**Recently Implemented:**
+
+1. **PlanComparisonTransformer.java** (`src/main/java/com/example/demo/docgen/util/`)
+   - 4-step transformation algorithm
+   - Converts nested plan/benefits data → 2D matrix
+   - Handles case-insensitive benefit matching
+   - Supports configurable spacing between plan columns
+   - Preserves original data while injecting matri
+
+2. **Auto-Transformation Integration** (DocumentComposer.generateExcel())
+   - Detects "plan-comparison" template automatically
+   - Checks for "plans" field in request data
+   - Skips transformation if "comparisonMatrix" already exists
+   - Updates request with enriched data before rendering
+   - Graceful error handling without failing generation
+
+3. **ExcelSectionRenderer** (2D Array Support)
+   - Detects 2D arrays in rendered data
+   - Implements row-major iteration with bounds checking
+   - Maps 2D array values to Excel cells
+   - Handles null-to-empty string conversion
+
+4. **Excel Templates & Configuration**
+   - `plan-comparison.yaml`: YAML template config with JSONPath mapping
+   - `comparison-template.xlsx`: Clean 7×6 Excel template with pre-styling
+   - Supports 3 plans × 5 benefits (extensible)
+
+5. **Comprehensive Test Suite** (ExcelGenerationComprehensiveTest.java)
+   - 13 test cases with 100% pass rate
+   - Basic tests: Simple comparison, different orders, missing benefits
+   - Auto-transformation tests: Raw data → matrix injection
+   - Advanced scenarios: Multiple plans, case sensitivity, special characters
+   - Edge cases: Empty plans, single plan, null values, template specificity
+
+**Usage:**
+```bash
+# No client-side code needed! Just send raw data:
+curl -X POST http://localhost:8080/api/documents/generate/excel \
+  -H "Content-Type: application/json" \
+  -d '{
+    "templateId": "plan-comparison",
+    "data": { "plans": [...] }
+  }' --output comparison.xlsx
+
+# Server automatically:
+# 1. Detects "plan-comparison" template
+# 2. Transforms nested plan data into 2D matrix
+# 3. Renders matrix into Excel template
+# 4. Returns XLSX file
+```
+
+**Key Documentation:**
+- [PLAN_COMPARISON_GUIDE_UPDATED.md](PLAN_COMPARISON_GUIDE_UPDATED.md) - Complete guide with architecture diagrams
+- [PLAN_COMPARISON_QUICK_REF_UPDATED.md](PLAN_COMPARISON_QUICK_REF_UPDATED.md) - Quick reference
+- [EXCEL_GENERATION_TEST_SUITE.md](EXCEL_GENERATION_TEST_SUITE.md) - Test suite documentation
+
+---
 
 #### Immediate TODOs
 

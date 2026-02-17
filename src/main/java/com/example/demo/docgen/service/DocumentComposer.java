@@ -13,6 +13,7 @@ import com.example.demo.docgen.model.OverflowConfig;
 import com.example.demo.docgen.model.PageSection;
 import com.example.demo.docgen.model.SectionType;
 import com.example.demo.docgen.renderer.SectionRenderer;
+import com.example.demo.docgen.util.PlanComparisonTransformer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.io.MemoryUsageSetting;
@@ -184,18 +185,28 @@ public class DocumentComposer {
     /**
      * Generate an Excel workbook from a template and data and return XLSX bytes.
      * The ExcelSectionRenderer stores the filled workbook in the RenderContext metadata under "excelWorkbook".
+     * 
+     * Auto-transformation: If the data contains a "plans" field and the template is "plan-comparison",
+     * automatically transforms the nested plan data into a 2D comparison matrix for rendering.
      */
     @LogExecutionTime("Total Excel Generation")
     public byte[] generateExcel(DocumentGenerationRequest request) {
         log.info("Generating EXCEL with template: {} from namespace: {}", request.getTemplateId(), request.getNamespace());
 
         try {
+            // Load template first to extract configuration (needed for auto-transformation)
             DocumentTemplate template;
             if (request.getNamespace() != null) {
                 template = templateLoader.loadTemplate(request.getNamespace(), request.getTemplateId(), request.getData());
             } else {
                 template = templateLoader.loadTemplate(request.getTemplateId(), request.getData());
             }
+
+            // Extract columnSpacing config from template (default to 1 if not specified)
+            int columnSpacing = getColumnSpacingFromTemplate(template);
+            
+            // Auto-transform plan data if needed (using configured spacing)
+            transformPlanDataIfNeeded(request, columnSpacing);
 
             RenderContext context = new RenderContext(template, request.getData());
             String ns = request.getNamespace() != null ? request.getNamespace() : "common-templates";
@@ -343,5 +354,111 @@ public class DocumentComposer {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         document.save(baos);
         return baos.toByteArray();
+    }
+
+    /**
+     * Extract column spacing configuration from template.
+     * 
+     * Looks for config.columnSpacing in the template definition.
+     * Default is 1 column of spacing between plan columns.
+     * 
+     * @param template The loaded document template
+     * @return Column spacing width (default: 1)
+     */
+    private int getColumnSpacingFromTemplate(DocumentTemplate template) {
+        try {
+            if (template != null && template.getConfig() != null) {
+                Object spacingObj = template.getConfig().get("columnSpacing");
+                if (spacingObj instanceof Integer) {
+                    int spacing = (Integer) spacingObj;
+                    if (spacing >= 0) {
+                        log.debug("Using configured column spacing: {}", spacing);
+                        return spacing;
+                    }
+                } else if (spacingObj instanceof Number) {
+                    int spacing = ((Number) spacingObj).intValue();
+                    if (spacing >= 0) {
+                        log.debug("Using configured column spacing: {}", spacing);
+                        return spacing;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error extracting columnSpacing from template, using default", e);
+        }
+        log.debug("No columnSpacing config found or invalid, using default: 1");
+        return 1; // Default spacing
+    }
+
+    /**
+     * Auto-transform plan data into comparison matrix if conditions are met.
+     * 
+     * Detects if:
+     * 1. The template is "plan-comparison" (exact match)
+     * 2. The data contains a "plans" field (List of plans)
+     * 3. The data does NOT already have a "comparisonMatrix" field
+     * 
+     * If all conditions are met, transforms the nested plan/benefits structure
+     * into a 2D matrix using PlanComparisonTransformer and injects it into the data.
+     * 
+     * This allows clients to send raw plan data without needing to call the
+     * transformer themselves. The server handles the transformation transparently.
+     * 
+     * @param request The document generation request containing template ID and data
+     * @param columnSpacing Number of columns between plan columns (from template config)
+     */
+    private void transformPlanDataIfNeeded(DocumentGenerationRequest request, int columnSpacing) {
+        try {
+            // Check if this is a plan-comparison template
+            if (request.getTemplateId() == null || !request.getTemplateId().equals("plan-comparison")) {
+                return; // Not a plan comparison template, skip transformation
+            }
+            
+            Map<String, Object> data = request.getData();
+            if (data == null) {
+                return; // No data, nothing to transform
+            }
+            
+            // If comparisonMatrix already exists, skip (client already transformed it)
+            if (data.containsKey("comparisonMatrix")) {
+                log.debug("comparisonMatrix already exists in data, skipping auto-transformation");
+                return;
+            }
+            
+            // Check if plans data is present
+            Object plansObj = data.get("plans");
+            if (!(plansObj instanceof List)) {
+                return; // No plans field or not a list, skip transformation
+            }
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> plans = (List<Map<String, Object>>) plansObj;
+            
+            if (plans.isEmpty()) {
+                return; // Empty plans, skip transformation
+            }
+            
+            // Transform the plan data into a comparison matrix with configured spacing
+            log.info("Auto-transforming plan data into comparison matrix for plan-comparison template (spacing: {})", columnSpacing);
+            Map<String, Object> enrichedData = PlanComparisonTransformer.injectComparisonMatrix(
+                data, 
+                plans, 
+                "name",           // Default benefit name field
+                "value",          // Default benefit value field
+                columnSpacing     // Use configured or default spacing
+            );
+            
+            // Update the request's data with the enriched version containing comparisonMatrix
+            request.setData(enrichedData);
+            
+            log.info("Plan comparison matrix auto-injection complete. Matrix dimensions: {} rows x {} columns", 
+                ((List<?>) enrichedData.get("comparisonMatrix")).size(),
+                ((List<?>) enrichedData.get("comparisonMatrix")).isEmpty() ? 0 : 
+                ((List<?>) ((List<?>) enrichedData.get("comparisonMatrix")).get(0)).size());
+        } catch (Exception e) {
+            log.warn("Error during auto-transformation of plan data, proceeding without transformation", e);
+            // Don't fail the entire generation if auto-transformation has issues
+            // The rendering may still work with raw plan data or may fail with a more specific error
+        }
     }
 }

@@ -1,0 +1,27 @@
+curl -X POST http://localhost:8080/api/documents/generate/excel \
+  -H "Content-Type: application/json" \
+  -d '{
+    "namespace": "common-templates",
+    "templateId": "plan-comparison",
+    "data": {
+      "plans": [
+        {
+          "planName": "Plan A",
+          "benefits": [
+            {"name": "Doctor Visits", "value": "Yes"},
+            {"name": "ER Visit", "value": "$20"},
+            {"name": "COpay", "value": "$20"}
+          ]
+        },
+        {
+          "planName": "Plan B",
+          "benefits": [
+            {"name": "Doctor Visits", "value": "$15"},
+            {"name": "ER Visit", "value": "Free"},
+             {"name": "COpay", "value": "$20"},
+              {"name": "XRAY Visit", "value": "$120"}
+          ]
+        }
+      ]
+    }
+  }' -o comparison.xlsx
