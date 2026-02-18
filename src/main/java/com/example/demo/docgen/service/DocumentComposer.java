@@ -205,8 +205,9 @@ public class DocumentComposer {
             // Extract columnSpacing config from template (default to 1 if not specified)
             int columnSpacing = getColumnSpacingFromTemplate(template);
             
-            // Auto-transform plan data if needed (using configured spacing)
-            transformPlanDataIfNeeded(request, columnSpacing);
+            // Auto-transform plan data if needed (using configured spacing).  Pass template so
+            // we can inspect additional configuration like `valuesOnly`.
+            transformPlanDataIfNeeded(request, template, columnSpacing);
 
             RenderContext context = new RenderContext(template, request.getData());
             String ns = request.getNamespace() != null ? request.getNamespace() : "common-templates";
@@ -407,10 +408,15 @@ public class DocumentComposer {
      * @param request The document generation request containing template ID and data
      * @param columnSpacing Number of columns between plan columns (from template config)
      */
-    private void transformPlanDataIfNeeded(DocumentGenerationRequest request, int columnSpacing) {
+    private void transformPlanDataIfNeeded(DocumentGenerationRequest request,
+                                             DocumentTemplate template,
+                                             int columnSpacing) {
         try {
-            // Check if this is a plan-comparison template
-            if (request.getTemplateId() == null || !request.getTemplateId().equals("plan-comparison")) {
+            // Only auto-transform for the canonical plan-comparison templates.  There
+            // may be additional variants (e.g. values-only) so we check prefix rather
+            // than hard-code every possible id; the `valuesOnly` flag in the template
+            // config will drive which helper is invoked.
+            if (request.getTemplateId() == null || !request.getTemplateId().startsWith("plan-comparison")) {
                 return; // Not a plan comparison template, skip transformation
             }
             
@@ -418,10 +424,21 @@ public class DocumentComposer {
             if (data == null) {
                 return; // No data, nothing to transform
             }
-            
-            // If comparisonMatrix already exists, skip (client already transformed it)
-            if (data.containsKey("comparisonMatrix")) {
+
+            // Determine whether the template expects a values-only matrix
+            boolean valuesOnly = false;
+            if (template.getConfig() != null) {
+                Object flag = template.getConfig().get("valuesOnly");
+                valuesOnly = flag instanceof Boolean && (Boolean) flag;
+            }
+
+            // Skip if the appropriate matrix already exists in the data
+            if (!valuesOnly && data.containsKey("comparisonMatrix")) {
                 log.debug("comparisonMatrix already exists in data, skipping auto-transformation");
+                return;
+            }
+            if (valuesOnly && data.containsKey("comparisonMatrixValues")) {
+                log.debug("comparisonMatrixValues already exists in data, skipping auto-transformation");
                 return;
             }
             
@@ -439,22 +456,37 @@ public class DocumentComposer {
             }
             
             // Transform the plan data into a comparison matrix with configured spacing
-            log.info("Auto-transforming plan data into comparison matrix for plan-comparison template (spacing: {})", columnSpacing);
-            Map<String, Object> enrichedData = PlanComparisonTransformer.injectComparisonMatrix(
-                data, 
-                plans, 
-                "name",           // Default benefit name field
-                "value",          // Default benefit value field
-                columnSpacing     // Use configured or default spacing
-            );
+            log.info("Auto-transforming plan data into comparison matrix for {} template (spacing: {}, valuesOnly: {})",
+                request.getTemplateId(), columnSpacing, valuesOnly);
+
+            Map<String, Object> enrichedData;
+            if (valuesOnly) {
+                enrichedData = PlanComparisonTransformer.injectComparisonMatrixValuesOnly(
+                    data,
+                    plans,
+                    "name",
+                    "value",
+                    columnSpacing
+                );
+            } else {
+                enrichedData = PlanComparisonTransformer.injectComparisonMatrix(
+                    data,
+                    plans,
+                    "name",
+                    "value",
+                    columnSpacing
+                );
+            }
             
-            // Update the request's data with the enriched version containing comparisonMatrix
+            // Update the request's data with the enriched version containing matrix
             request.setData(enrichedData);
             
+            // Log dimensions using whichever key we injected
+            String matrixKey = valuesOnly ? "comparisonMatrixValues" : "comparisonMatrix";
+            List<?> mat = (List<?>) enrichedData.get(matrixKey);
             log.info("Plan comparison matrix auto-injection complete. Matrix dimensions: {} rows x {} columns", 
-                ((List<?>) enrichedData.get("comparisonMatrix")).size(),
-                ((List<?>) enrichedData.get("comparisonMatrix")).isEmpty() ? 0 : 
-                ((List<?>) ((List<?>) enrichedData.get("comparisonMatrix")).get(0)).size());
+                mat.size(),
+                mat.isEmpty() ? 0 : ((List<?>) mat.get(0)).size());
         } catch (Exception e) {
             log.warn("Error during auto-transformation of plan data, proceeding without transformation", e);
             // Don't fail the entire generation if auto-transformation has issues

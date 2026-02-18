@@ -92,15 +92,27 @@ INPUT: DocumentGenerationRequest
     |-- NO:  Return (skip transformation)
     |-- YES: Continue
   
-  CHECK 3: request.getData().containsKey("comparisonMatrix") ?
-    |-- YES: Return (already transformed, skip)
-    |-- NO:  Continue
+  CHECK 3: Determine if we should inject a full or values-only matrix
+    |-- Read template.config.valuesOnly (default false)
+    |-- If valuesOnly == false:
+        • CHECK 3a: data.containsKey("comparisonMatrix") ?
+            |-- YES: Return (already transformed, skip)
+            |-- NO:  Continue
+    |-- If valuesOnly == true:
+        • CHECK 3b: data.containsKey("comparisonMatrixValues") ?
+            |-- YES: Return (already transformed, skip)
+            |-- NO: Continue
   
   ACTION: Transform & Inject
     → Extract plans from data
-    → Call PlanComparisonTransformer.injectComparisonMatrix(data, plans)
+    → If valuesOnly==false call
+         PlanComparisonTransformer.injectComparisonMatrix(data, plans)
+         (populates `comparisonMatrix`)
+      Else call
+         PlanComparisonTransformer.injectComparisonMatrixValuesOnly(data, plans)
+         (populates `comparisonMatrixValues`)
     → Update request.setData(enrichedData)
-    → Log matrix dimensions
+    → Log matrix dimensions (key depends on branch)
     → RETURN
 
 EXCEPTION: Log warning, don't fail generation (graceful degradation)

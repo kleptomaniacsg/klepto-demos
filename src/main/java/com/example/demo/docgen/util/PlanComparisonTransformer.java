@@ -171,4 +171,70 @@ public class PlanComparisonTransformer {
         result.put("comparisonMatrix", matrix);
         return result;
     }
+
+    /**
+     * Generate a matrix that excludes the benefit column itself. Useful when the
+     * template already contains the benefit names in column A and you only want
+     * to fill plan values (columns to the right).
+     * 
+     * The returned matrix has the same number of rows, but each row begins with
+     * spacing columns (if any) followed by plan values; the initial "Benefit"
+     * header cell is omitted as is the first column of each data row.
+     */
+    /**
+     * Convenience variant of {@link #transformPlansToMatrixValuesOnly(List,String,String,int)}
+     * that uses the default field names ("name"/"value") and spacing of 1.
+     */
+    public static List<List<Object>> transformPlansToMatrixValuesOnly(
+            List<Map<String, Object>> plans) {
+        return transformPlansToMatrixValuesOnly(plans, "name", "value", 1);
+    }
+
+    public static List<List<Object>> transformPlansToMatrixValuesOnly(
+            List<Map<String, Object>> plans,
+            String benefitNameField,
+            String benefitValueField,
+            int spacingWidth) {
+        List<List<Object>> full = transformPlansToMatrix(plans, benefitNameField, benefitValueField, spacingWidth);
+        if (full.isEmpty()) {
+            return full;
+        }
+        List<List<Object>> stripped = new ArrayList<>();
+        for (List<Object> row : full) {
+            if (row.size() <= 1) {
+                stripped.add(new ArrayList<>());
+            } else {
+                // drop the first element (benefit or header label)
+                stripped.add(new ArrayList<>(row.subList(1, row.size())));
+            }
+        }
+        return stripped;
+    }
+
+    /**
+     * Convenience helper which injects value-only matrix into data under
+     * `comparisonMatrixValues` key.  Users can then map a range excluding the
+     * benefit column (e.g. "B1:G6").
+     */
+    /**
+     * Convenience variant that uses default field names and spacing.
+     */
+    public static Map<String, Object> injectComparisonMatrixValuesOnly(
+            Map<String, Object> data,
+            List<Map<String, Object>> plans) {
+        return injectComparisonMatrixValuesOnly(data, plans, "name", "value", 1);
+    }
+
+    public static Map<String, Object> injectComparisonMatrixValuesOnly(
+            Map<String, Object> data,
+            List<Map<String, Object>> plans,
+            String benefitNameField,
+            String benefitValueField,
+            int spacingWidth) {
+        Map<String, Object> result = new HashMap<>(data);
+        List<List<Object>> matrix = transformPlansToMatrixValuesOnly(plans, benefitNameField, benefitValueField, spacingWidth);
+        result.put("comparisonMatrixValues", matrix);
+        return result;
+    }
 }
+

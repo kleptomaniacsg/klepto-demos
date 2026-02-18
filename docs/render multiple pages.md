@@ -1,21 +1,3 @@
-Read [](file:///workspaces/demo/OVERFLOW_STRATEGIES.md#1-1), lines 1 to 100
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/model/PageSection.java#1-1), lines 1 to 50
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/model/PageSection.java#51-51), lines 51 to 98
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/model/OverflowConfig.java)
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/renderer/FreeMarkerRenderer.java)
-
-Searched for files matching `**/DocumentGeneratorService.java`, no matches
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/service)
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/service/DocumentComposer.java#1-1), lines 1 to 100
-
-Read [](file:///workspaces/demo/src/main/java/com/example/demo/docgen/service/DocumentComposer.java#150-150), lines 150 to 230
-
 When using FreeMarker for table-heavy sections, you have two primary ways to handle overflow and pagination:
 
 ### 1. Automatic Flow (Recommended for FreeMarker)

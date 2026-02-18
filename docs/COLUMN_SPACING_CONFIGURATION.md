@@ -8,6 +8,12 @@ You can now configure the number of columns between plan columns using the YAML 
 
 The column spacing is configured in the template's `config` section:
 
+> **Tip:** the same `config` map may also contain other plan-comparison
+> options such as `valuesOnly` (see plan comparison documentation) which tells
+> the transformer to omit the benefit column because the workbook already
+> contains it.  That flag is ignored by the spacing logic.
+
+
 ```yaml
 templateId: plan-comparison
 description: Plan comparison table showing benefits across multiple plans

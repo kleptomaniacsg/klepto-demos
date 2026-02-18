@@ -54,6 +54,12 @@ Your API receives request data with nested plans and benefits (can be in any ord
 
 ### Step 2: Transform Data in Your Controller/Service
 
+*Optionally* you can signal that the template already contains the benefit names
+in its first column by using the `valuesOnly` variant of the transformer
+(see the "Values-only" section later).  In that case the transformer will return
+only the plan-value columns and inject them under `comparisonMatrixValues`.
+
+
 Use `PlanComparisonTransformer` to convert nested data into a 2D matrix:
 
 ```java
@@ -111,6 +117,11 @@ Output (matrix):
 ```
 
 ### Step 4: Use YAML Template
+
+Or use the companion *values‑only* template (`plan-comparison-values-only.yaml`)
+if the workbook already contains benefit labels in column A.  That template
+sets `config.valuesOnly: true` and maps the range to `$.comparisonMatrixValues`.
+
 
 Your YAML template simply maps the 2D matrix to an Excel range:
 

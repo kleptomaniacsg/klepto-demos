@@ -166,6 +166,58 @@ public class PlanComparisonTransformerTest {
     }
 
     /**
+     * Example 5: Values-only matrix when benefit column is pre-populated
+     */
+    @Test
+    public void testTransformValuesOnlyMatrix() {
+        List<Map<String, Object>> plans = Arrays.asList(
+                createPlan("A", Arrays.asList(createBenefit("X", "1"))),
+                createPlan("B", Arrays.asList(createBenefit("X", "2")))
+        );
+
+        List<List<Object>> full = PlanComparisonTransformer.transformPlansToMatrix(plans);
+        List<List<Object>> values = PlanComparisonTransformer.transformPlansToMatrixValuesOnly(plans);
+
+        assertEquals(full.size(), values.size());
+        for (int i = 0; i < full.size(); i++) {
+            List<Object> fullRow = full.get(i);
+            List<Object> valRow = values.get(i);
+            assertEquals(fullRow.size() - 1, valRow.size(), "Row " + i + " should be one shorter");
+            for (int j = 1; j < fullRow.size(); j++) {
+                assertEquals(fullRow.get(j), valRow.get(j - 1));
+            }
+        }
+
+        System.out.println("✓ Values-only matrix produced correctly:");
+        printMatrix(values);
+    }
+
+    /**
+     * Example 6: Injection helper for values-only matrices
+     */
+    @Test
+    public void testInjectComparisonMatrixValuesOnly() {
+        Map<String, Object> templateData = new HashMap<>();
+        templateData.put("foo", "bar");
+        List<Map<String, Object>> plans = Arrays.asList(
+                createPlan("P1", Arrays.asList(createBenefit("B1", "V1"))),
+                createPlan("P2", Arrays.asList(createBenefit("B1", "V2")))
+        );
+
+        Map<String, Object> result = PlanComparisonTransformer.injectComparisonMatrixValuesOnly(templateData, plans);
+        assertTrue(result.containsKey("comparisonMatrixValues"));
+        List<List<Object>> matrix = (List<List<Object>>) result.get("comparisonMatrixValues");
+        assertEquals(2, matrix.size()); // header + one benefit row
+        // header row should start with spacer (benefit column removed)
+        assertEquals("", matrix.get(0).get(0));
+        assertEquals("P1", matrix.get(0).get(1)); // first plan name now at index 1
+        assertEquals("V1", matrix.get(1).get(1)); // first plan value on second row
+
+        System.out.println("✓ Values-only matrix injected into template data:");
+        printMatrix(matrix);
+    }
+
+    /**
      * Real-world example: Insurance plan comparison
      */
     @Test

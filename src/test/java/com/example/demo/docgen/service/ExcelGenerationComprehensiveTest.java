@@ -301,6 +301,83 @@ class ExcelGenerationComprehensiveTest {
 
             workbook.close();
         }
+
+        /**
+         * Test 6: Auto-transform into values-only matrix when template is configured accordingly
+         */
+        @Test
+        @DisplayName("Should auto-transform raw plan data into values-only matrix")
+        void testAutoTransformationValuesOnly() throws Exception {
+            Map<String, Object> requestData = new HashMap<>();
+            List<Map<String, Object>> plans = Arrays.asList(
+                    createPlan("X", Arrays.asList(createBenefit("B", "1"))),
+                    createPlan("Y", Arrays.asList(createBenefit("B", "2")))
+            );
+            requestData.put("plans", plans);
+
+            byte[] excelBytes = performExcelGeneration(
+                    "common-templates",
+                    "plan-comparison-values-only",
+                    requestData
+            );
+
+            Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(excelBytes));
+            Sheet sheet = workbook.getSheetAt(0);
+
+            // Column A should remain untouched (blank or empty in base workbook)
+            String first = getCellValue(sheet, 0, 0);
+            assertTrue(first == null || first.isEmpty(), "Column A should be blank but was: '" + first + "'");
+
+            // debug: print header row to understand mapping
+            System.out.println("Header row values: " +
+                getCellValue(sheet,0,0) + "," +
+                getCellValue(sheet,0,1) + "," +
+                getCellValue(sheet,0,2) + "," +
+                getCellValue(sheet,0,3) + "," +
+                getCellValue(sheet,0,4));
+
+            // Values appear starting at column C (because the first element maps
+            // to B1 which is the spacer).  Expect X in C1 and Y in E1.
+            assertEquals("X", getCellValue(sheet, 0, 2));
+            assertEquals("Y", getCellValue(sheet, 0, 4));
+            assertEquals("1", getCellValue(sheet, 1, 2));
+            assertEquals("2", getCellValue(sheet, 1, 4));
+
+            workbook.close();
+        }
+
+        /**
+         * Test 7: Auto-transformation should respect provided comparisonMatrixValues when config valuesOnly=true
+         */
+        @Test
+        @DisplayName("Should skip auto-transformation if comparisonMatrixValues already provided")
+        void testAutoTransformationSkipsIfValuesMatrixExists() throws Exception {
+            List<List<Object>> customMatrix = Arrays.asList(
+                    Arrays.asList("X", "", "Y"),
+                    Arrays.asList("V1", "", "V2")
+            );
+            Map<String, Object> requestData = new HashMap<>();
+            requestData.put("plans", Arrays.asList(
+                    createPlan("ignored", Arrays.asList(createBenefit("foo", "bar")))
+            ));
+            requestData.put("comparisonMatrixValues", customMatrix);
+
+            byte[] excelBytes = performExcelGeneration(
+                    "common-templates",
+                    "plan-comparison-values-only",
+                    requestData
+            );
+
+            Workbook workbook = WorkbookFactory.create(new ByteArrayInputStream(excelBytes));
+            Sheet sheet = workbook.getSheetAt(0);
+
+            assertEquals("X", getCellValue(sheet, 0, 1));
+            assertEquals("Y", getCellValue(sheet, 0, 3));
+            assertEquals("V1", getCellValue(sheet, 1, 1));
+            assertEquals("V2", getCellValue(sheet, 1, 3));
+
+            workbook.close();
+        }
     }
 
     @Nested
